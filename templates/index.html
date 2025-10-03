@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WiFi Manager - Raspberry Pi</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .status {
+            padding: 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .status-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .status-card h3 {
+            color: #495057;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-connected {
+            background: #28a745;
+        }
+
+        .status-disconnected {
+            background: #dc3545;
+        }
+
+        .status-hotspot {
+            background: #ffc107;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section h2 {
+            color: #495057;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+
+        .wifi-list {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+        }
+
+        .wifi-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .wifi-item:hover {
+            transform: translateY(-2px);
+        }
+
+        .wifi-info {
+            flex: 1;
+        }
+
+        .wifi-ssid {
+            font-weight: 600;
+            color: #495057;
+            font-size: 1.1em;
+        }
+
+        .wifi-details {
+            color: #6c757d;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        .signal-strength {
+            display: flex;
+            align-items: center;
+        }
+
+        .signal-bars {
+            display: flex;
+            gap: 2px;
+            margin-right: 10px;
+        }
+
+        .signal-bar {
+            width: 4px;
+            height: 16px;
+            background: #e9ecef;
+            border-radius: 2px;
+        }
+
+        .signal-bar.active {
+            background: #28a745;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+        }
+
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 0.9em;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background: white;
+            margin: 10% auto;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal h3 {
+            color: #495057;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #495057;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .nav {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #6c757d;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛜 WiFi Manager</h1>
+            <p>Gerenciamento de Wi-Fi para Raspberry Pi Zero 2W</p>
+        </div>
+
+        <div class="status">
+            <div class="status-grid">
+                <div class="status-card">
+                    <h3>Status da Conexão</h3>
+                    <div id="connection-status">
+                        <span class="status-indicator status-disconnected"></span>
+                        Carregando...
+                    </div>
+                </div>
+                <div class="status-card">
+                    <h3>Modo Atual</h3>
+                    <div id="current-mode">
+                        <span class="status-indicator status-disconnected"></span>
+                        Verificando...
+                    </div>
+                </div>
+                <div class="status-card">
+                    <h3>Rede Atual</h3>
+                    <div id="current-network">Nenhuma</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="nav">
+                <button class="btn" onclick="showSection('wifi')">Wi-Fi</button>
+            </div>
+
+            <div id="alerts"></div>
+
+            <div id="wifi-section" class="section">
+                <h2>Redes Wi-Fi Disponíveis</h2>
+                
+                <div style="margin-bottom: 20px;">
+                    <button class="btn" onclick="scanNetworks()">🔄 Escanear Redes</button>
+                    <button class="btn btn-danger" onclick="disconnectWifi()">❌ Desconectar</button>
+                </div>
+
+                <div class="loading" id="scan-loading">
+                    <div class="spinner"></div>
+                    Escaneando redes Wi-Fi...
+                </div>
+
+                <div class="wifi-list" id="wifi-list">
+                    <div style="text-align: center; color: #6c757d; padding: 20px;">
+                        Clique em "Escanear Redes" para ver as redes disponíveis
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Conexão Wi-Fi -->
+    <div id="wifi-modal" class="modal">
+        <div class="modal-content">
+            <h3>Conectar à Rede Wi-Fi</h3>
+            <form id="wifi-form">
+                <div class="form-group">
+                    <label for="wifi-ssid">Nome da Rede (SSID):</label>
+                    <input type="text" id="wifi-ssid" name="ssid" required readonly>
+                </div>
+                <div class="form-group">
+                    <label for="wifi-password">Senha:</label>
+                    <input type="password" id="wifi-password" name="password" placeholder="Deixe em branco para redes abertas">
+                </div>
+                <div class="button-group">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                    <button type="submit" class="btn">Conectar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let currentStatus = {};
+
+        // Inicializar página
+        document.addEventListener('DOMContentLoaded', function() {
+            updateStatus();
+            setInterval(updateStatus, 5000); // Atualizar status a cada 5 segundos
+        });
+
+        function showSection(section) {
+            // Esconder todas as seções
+            document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+            
+            // Mostrar seção selecionada
+            document.getElementById(section + '-section').style.display = 'block';
+            
+            // Atualizar botões de navegação
+            document.querySelectorAll('.nav .btn').forEach(btn => {
+                btn.className = 'btn btn-secondary';
+            });
+            event.target.className = 'btn';
+        }
+
+        function updateStatus() {
+            fetch('/status')
+                .then(response => response.json())
+                .then(data => {
+                    currentStatus = data;
+                    
+                    // Atualizar status da conexão
+                    const connectionStatus = document.getElementById('connection-status');
+                    if (data.wifi && data.wifi.connected) {
+                        connectionStatus.innerHTML = '<span class="status-indicator status-connected"></span>Conectado';
+                    } else {
+                        connectionStatus.innerHTML = '<span class="status-indicator status-disconnected"></span>Desconectado';
+                    }
+                    
+                    // Atualizar modo atual
+                    const currentMode = document.getElementById('current-mode');
+                    if (data.mode === 'hotspot') {
+                        currentMode.innerHTML = '<span class="status-indicator status-hotspot"></span>Hotspot Ativo';
+                    } else {
+                        currentMode.innerHTML = '<span class="status-indicator status-connected"></span>Modo Wi-Fi';
+                    }
+                    
+                    // Atualizar rede atual
+                    const currentNetwork = document.getElementById('current-network');
+                    if (data.wifi && data.wifi.current_network) {
+                        currentNetwork.textContent = data.wifi.current_network;
+                    } else if (data.mode === 'hotspot') {
+                        currentNetwork.textContent = data.hotspot.ssid + ' (Hotspot)';
+                    } else {
+                        currentNetwork.textContent = 'Nenhuma';
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao obter status:', error);
+                });
+        }
+
+        function scanNetworks() {
+            const loading = document.getElementById('scan-loading');
+            const wifiList = document.getElementById('wifi-list');
+            
+            loading.style.display = 'block';
+            wifiList.innerHTML = '';
+            
+            fetch('/scan')
+                .then(response => response.json())
+                .then(data => {
+                    loading.style.display = 'none';
+                    
+                    if (data.success && data.networks) {
+                        displayNetworks(data.networks);
+                    } else {
+                        showAlert('Erro ao escanear redes: ' + (data.error || 'Erro desconhecido'), 'error');
+                    }
+                })
+                .catch(error => {
+                    loading.style.display = 'none';
+                    showAlert('Erro de conexão: ' + error.message, 'error');
+                });
+        }
+
+        function displayNetworks(networks) {
+            const wifiList = document.getElementById('wifi-list');
+            
+            if (networks.length === 0) {
+                wifiList.innerHTML = '<div style="text-align: center; color: #6c757d; padding: 20px;">Nenhuma rede encontrada</div>';
+                return;
+            }
+            
+            wifiList.innerHTML = '';
+            
+            networks.forEach(network => {
+                const wifiItem = document.createElement('div');
+                wifiItem.className = 'wifi-item';
+                wifiItem.onclick = () => openWifiModal(network.ssid);
+                
+                const signalStrength = network.signal_strength || 0;
+                const bars = Math.ceil(signalStrength / 25); // 0-4 barras
+                
+                wifiItem.innerHTML = `
+                    <div class="wifi-info">
+                        <div class="wifi-ssid">${network.ssid}</div>
+                        <div class="wifi-details">
+                            ${network.encrypted ? '🔒 Protegida' : '🔓 Aberta'} • 
+                            Sinal: ${signalStrength}%
+                        </div>
+                    </div>
+                    <div class="signal-strength">
+                        <div class="signal-bars">
+                            ${Array.from({length: 4}, (_, i) => 
+                                `<div class="signal-bar ${i < bars ? 'active' : ''}"></div>`
+                            ).join('')}
+                        </div>
+                    </div>
+                `;
+                
+                wifiList.appendChild(wifiItem);
+            });
+        }
+
+        function openWifiModal(ssid) {
+            document.getElementById('wifi-ssid').value = ssid;
+            document.getElementById('wifi-password').value = '';
+            document.getElementById('wifi-modal').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('wifi-modal').style.display = 'none';
+        }
+
+        function connectWifi(event) {
+            event.preventDefault();
+            
+            const formData = new FormData(event.target);
+            const wifiData = {
+                ssid: formData.get('ssid'),
+                password: formData.get('password')
+            };
+            
+            // Validação básica no frontend
+            if (!wifiData.ssid.trim()) {
+                showAlert('Nome da rede (SSID) é obrigatório', 'error');
+                return;
+            }
+            
+            if (wifiData.password && wifiData.password.length > 0 && wifiData.password.length < 8) {
+                showAlert('Senha deve ter pelo menos 8 caracteres', 'error');
+                return;
+            }
+            
+            // Mostrar indicador de conexão
+            showAlert('Conectando à rede ' + wifiData.ssid + '...', 'info');
+            
+            fetch('/connect', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(wifiData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                closeModal();
+                
+                if (data.success) {
+                    showAlert(data.message, 'success');
+                    setTimeout(() => {
+                        updateStatus();
+                    }, 2000);
+                } else {
+                    // Mostrar erro específico baseado no tipo
+                    let errorMessage = data.error;
+                    
+                    if (data.error_type === 'authentication') {
+                        errorMessage = '🔐 ' + data.error;
+                        showAlert(errorMessage, 'error', data.suggestions);
+                    } else if (data.error_type === 'network_not_found') {
+                        errorMessage = '🔍 ' + data.error;
+                        showAlert(errorMessage, 'error', data.suggestions);
+                    } else if (data.error_type === 'validation') {
+                        errorMessage = '⚠️ ' + data.error;
+                        if (data.details) {
+                            errorMessage += ` (SSID: ${data.details.ssid_length}/${data.details.max_ssid_length} chars`;
+                            if (data.details.password_length > 0) {
+                                errorMessage += `, Senha: ${data.details.password_length} chars)`;
+                            } else {
+                                errorMessage += ')';
+                            }
+                        }
+                        showAlert(errorMessage, 'error');
+                    } else {
+                        errorMessage = '❌ ' + data.error;
+                        showAlert(errorMessage, 'error', data.suggestions);
+                    }
+                }
+            })
+            .catch(error => {
+                closeModal();
+                showAlert('❌ Erro de comunicação: ' + error.message, 'error');
+            });
+        }
+
+        function disconnectWifi() {
+            if (confirm('Deseja realmente desconectar do Wi-Fi?')) {
+                fetch('/disconnect', {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showAlert(data.message, 'success');
+                        updateStatus();
+                    } else {
+                        showAlert('Erro ao desconectar: ' + data.error, 'error');
+                    }
+                })
+                .catch(error => {
+                    showAlert('Erro de conexão: ' + error.message, 'error');
+                });
+            }
+        }
+
+        function showAlert(message, type, suggestions = null) {
+            const alertsContainer = document.getElementById('alerts');
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type}`;
+            
+            let alertContent = message;
+            
+            // Adicionar sugestões se fornecidas
+            if (suggestions && suggestions.length > 0) {
+                alertContent += '<br><strong>Sugestões:</strong><ul>';
+                suggestions.forEach(suggestion => {
+                    alertContent += `<li>${suggestion}</li>`;
+                });
+                alertContent += '</ul>';
+            }
+            
+            alertDiv.innerHTML = alertContent;
+            alertDiv.style.display = 'block';
+            
+            alertsContainer.appendChild(alertDiv);
+            
+            // Auto-remover após 8 segundos para alertas com sugestões, 5 para outros
+            const timeout = suggestions ? 8000 : 5000;
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.remove();
+                }
+            }, timeout);
+        }
+
+        // Event listeners
+        document.getElementById('wifi-form').addEventListener('submit', connectWifi);
+
+        // Fechar modal clicando fora
+        window.addEventListener('click', function(event) {
+            const modal = document.getElementById('wifi-modal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        });
+    </script>
+</body>
+</html>

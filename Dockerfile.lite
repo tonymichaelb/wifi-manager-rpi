@@ -1,0 +1,38 @@
+FROM python:3.9-slim
+
+# Instalar apenas dependências essenciais para Raspberry Pi Zero 2W
+RUN apt-get update && apt-get install -y \
+    hostapd \
+    dnsmasq \
+    iproute2 \
+    wireless-tools \
+    wpasupplicant \
+    iptables \
+    procps \
+    dhcpcd5 \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Criar diretório de trabalho
+WORKDIR /app
+
+# Copiar arquivos de dependências mínimas
+COPY requirements-lite.txt .
+
+# Instalar dependências Python mínimas
+RUN pip install --no-cache-dir -r requirements-lite.txt
+
+# Copiar apenas código essencial
+COPY src/main-lite.py ./src/main.py
+COPY templates/index-lite.html ./templates/index.html
+
+# Criar diretórios necessários mínimos
+RUN mkdir -p /var/lib/dhcp \
+    && mkdir -p /var/run/hostapd \
+    && mkdir -p /tmp
+
+# Expor porta
+EXPOSE 8080
+
+# Comando padrão
+CMD ["python", "src/main.py"]

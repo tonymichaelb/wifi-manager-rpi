@@ -1,0 +1,15 @@
+{
+  "wifi_interface": "wlan0",
+  "hotspot_ssid": "RPi-WiFi-Config",
+  "hotspot_password": "raspberry123",
+  "web_port": 8080,
+  "check_interval": 10,
+  "max_failures": 3,
+  "auto_reconnect": true,
+  "log_level": "INFO",
+  "hotspot_config": {
+    "channel": 7,
+    "ip_range": "192.168.4.1/24",
+    "dhcp_range": "192.168.4.2,192.168.4.50,255.255.255.0,12h"
+  }
+}

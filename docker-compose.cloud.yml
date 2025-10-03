@@ -1,0 +1,145 @@
+# Docker Compose para deployment em plataformas cloud
+# Esta versão não depende de build local
+
+services:
+  wifi-manager:
+    image: python:3.9-slim
+    container_name: rpi-wifi-manager
+    restart: unless-stopped
+    
+    # Configuração para desenvolvimento/demo
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DEMO_MODE=true
+      - WIFI_INTERFACE=wlan0
+      - HOTSPOT_SSID=RPi-WiFi-Config
+      - HOTSPOT_PASSWORD=raspberry123
+      - WEB_PORT=8080
+    
+    # Portas
+    ports:
+      - "8080:8080"
+    
+    # Comando para instalar dependências e executar
+    command: >
+      bash -c "
+        apt-get update && apt-get install -y curl gcc python3-dev build-essential &&
+        pip install flask psutil netifaces requests jinja2 &&
+        mkdir -p /app/src /app/config /app/templates /var/log/wifi-manager &&
+        cat > /app/src/main.py << 'EOF'
+      import os
+      import logging
+      from flask import Flask, render_template_string
+      
+      app = Flask(__name__)
+      
+      HTML_TEMPLATE = '''
+      <!DOCTYPE html>
+      <html>
+      <head>
+          <title>WiFi Manager - Demo</title>
+          <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
+          <style>
+              body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
+              .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+              .header { text-align: center; color: #333; margin-bottom: 30px; }
+              .status { background: #e8f5e8; padding: 20px; border-radius: 5px; margin: 20px 0; }
+              .demo-mode { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0; }
+              .btn { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
+              .btn:hover { background: #0056b3; }
+              .network-list { background: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0; }
+              .network-item { background: white; padding: 15px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #007bff; }
+          </style>
+      </head>
+      <body>
+          <div class=\"container\">
+              <div class=\"header\">
+                  <h1>🛜 WiFi Manager</h1>
+                  <p>Sistema de Gerenciamento Wi-Fi para Raspberry Pi Zero 2W</p>
+              </div>
+              
+              <div class=\"demo-mode\">
+                  <strong>🧪 Modo Demo Ativo</strong><br>
+                  Esta é uma versão de demonstração do sistema. Em um Raspberry Pi real, 
+                  o sistema monitora automaticamente a conexão Wi-Fi e ativa um hotspot quando necessário.
+              </div>
+              
+              <div class=\"status\">
+                  <h3>Status do Sistema</h3>
+                  <p><strong>Modo:</strong> Demo/Desenvolvimento</p>
+                  <p><strong>Interface:</strong> {{ interface }}</p>
+                  <p><strong>Hotspot SSID:</strong> {{ hotspot_ssid }}</p>
+                  <p><strong>Status:</strong> ✅ Sistema funcionando</p>
+              </div>
+              
+              <div class=\"network-list\">
+                  <h3>Funcionalidades Disponíveis</h3>
+                  
+                  <div class=\"network-item\">
+                      <strong>📡 Monitoramento Wi-Fi</strong><br>
+                      Monitora continuamente a conexão Wi-Fi e detecta falhas automaticamente
+                  </div>
+                  
+                  <div class=\"network-item\">
+                      <strong>🔥 Hotspot Automático</strong><br>
+                      Ativa hotspot quando a conexão Wi-Fi falha, permitindo reconfiguração
+                  </div>
+                  
+                  <div class=\"network-item\">
+                      <strong>🌐 Interface Web</strong><br>
+                      Interface responsiva para configuração e monitoramento do sistema
+                  </div>
+                  
+                  <div class=\"network-item\">
+                      <strong>🔒 Captive Portal</strong><br>
+                      Redireciona automaticamente dispositivos conectados ao hotspot
+                  </div>
+              </div>
+              
+              <div style=\"text-align: center; margin-top: 30px;\">
+                  <button class=\"btn\" onclick=\"alert('Em modo demo - funcionalidade será disponível no Raspberry Pi')\">Escanear Redes</button>
+                  <button class=\"btn\" onclick=\"alert('Em modo demo - funcionalidade será disponível no Raspberry Pi')\">Configurar Wi-Fi</button>
+                  <button class=\"btn\" onclick=\"window.location.reload()\">Atualizar Status</button>
+              </div>
+              
+              <div style=\"margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; color: #666;\">
+                  <p>WiFi Manager v1.0 - Sistema completo para Raspberry Pi Zero 2W</p>
+                  <p>Para deploy no RPi: use os scripts em /scripts/deploy.sh</p>
+              </div>
+          </div>
+      </body>
+      </html>
+      '''
+      
+      @app.route('/')
+      def index():
+          return render_template_string(HTML_TEMPLATE, 
+              interface=os.getenv('WIFI_INTERFACE', 'wlan0'),
+              hotspot_ssid=os.getenv('HOTSPOT_SSID', 'RPi-WiFi-Config')
+          )
+      
+      @app.route('/status')
+      def status():
+          return {
+              'mode': 'demo',
+              'wifi_connected': False,
+              'hotspot_active': True,
+              'interface': os.getenv('WIFI_INTERFACE', 'wlan0'),
+              'hotspot_ssid': os.getenv('HOTSPOT_SSID', 'RPi-WiFi-Config')
+          }
+      
+      if __name__ == '__main__':
+          print('🚀 WiFi Manager Demo iniciado!')
+          print('📱 Acesse: http://localhost:8080')
+          app.run(host='0.0.0.0', port=8080, debug=False)
+      EOF
+        python /app/src/main.py
+      "
+    
+    # Health check
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s

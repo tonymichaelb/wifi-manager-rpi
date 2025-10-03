@@ -1,0 +1,43 @@
+services:
+  wifi-manager:
+    image: tonymichael/wifi-manager:1.0.5
+    container_name: rpi-wifi-manager
+    restart: unless-stopped
+    
+    # Configuração para PRODUÇÃO no Raspberry Pi Zero 2W
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DEMO_MODE=false                   # MODO PRODUÇÃO - Wi-Fi real
+      - WIFI_INTERFACE=wlan0              # Interface Wi-Fi do Raspberry Pi
+      - HOTSPOT_SSID=RPi-WiFi-Config
+      - HOTSPOT_PASSWORD=raspberry123
+      - WEB_PORT=8080
+    
+    # Acesso completo ao sistema para Wi-Fi
+    privileged: true
+    network_mode: host
+    
+    # Volumes para configuração e logs
+    volumes:
+      - ./config:/app/config
+      - ./logs:/var/log/wifi-manager
+      - /var/run/wpa_supplicant:/var/run/wpa_supplicant
+      - /etc/wpa_supplicant:/etc/wpa_supplicant
+    
+    # Devices para acesso ao Wi-Fi
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    
+    # Capabilities necessárias para rede
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - SYS_MODULE
+    
+    # Health check
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

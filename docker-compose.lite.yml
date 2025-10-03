@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  wifi-manager-lite:
+    image: tonymichael/wifi-manager:lite-v3
+    container_name: rpi-wifi-manager-lite
+    privileged: true
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      - WIFI_INTERFACE=wlan0
+    volumes:
+      - /var/run/dbus:/var/run/dbus
+    ports:
+      - "8080:8080"

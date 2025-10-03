@@ -1,0 +1,18 @@
+services:
+  wifi-manager-dev:
+    build: .
+    container_name: wifi-manager-dev
+    privileged: false  # Sem privilégios para desenvolvimento
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./config:/app/config
+      - ./logs:/var/log/wifi-manager
+    environment:
+      - PYTHONUNBUFFERED=1
+      - WIFI_INTERFACE=mock0  # Interface mock para desenvolvimento
+      - HOTSPOT_SSID=RPi-WiFi-Config-Dev
+      - HOTSPOT_PASSWORD=development123
+      - WEB_PORT=8080
+      - DEVELOPMENT_MODE=true  # Ativa modo de desenvolvimento
+    command: ["python", "src/test_web.py"]  # Script de teste para desenvolvimento

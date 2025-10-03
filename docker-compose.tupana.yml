@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  tupana-wifi-manager:
+    image: tonymichael/wifi-manager:tupana
+    container_name: tupana-wifi-manager
+    privileged: true
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      - WIFI_INTERFACE=wlan0
+    volumes:
+      - /var/run/dbus:/var/run/dbus
+    
+    # Sistema TUPANA rodará na porta 8080
+    # Com network_mode: host, a porta é automaticamente exposta

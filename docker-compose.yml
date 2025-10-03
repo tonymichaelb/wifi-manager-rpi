@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  tupana-wifi:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tupana-wifi-manager
+    privileged: true
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      - /var/run/dbus:/var/run/dbus:rw
+      - /etc/wpa_supplicant:/etc/wpa_supplicant:rw
+      - /var/lib/dhcp:/var/lib/dhcp:rw
+      - ./config:/app/config:rw
+      - ./logs:/app/logs:rw
+      - /dev:/dev:rw
+      - /sys:/sys:rw
+      - /proc:/proc:rw
+      - /etc/systemd/network:/etc/systemd/network:rw
+    environment:
+      - WIFI_INTERFACE=wlan0
+      - WEB_PORT=8080
+      - DEMO_MODE=true
+      - LOG_LEVEL=INFO
+      - FLASK_ENV=development
+      - PYTHONUNBUFFERED=1
+    ports:
+      - "8080:8080"
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - SYS_ADMIN
+    devices:
+      - /dev/rfkill:/dev/rfkill
+    labels:
+      - "tupana.service=wifi-manager"
+      - "tupana.version=1.0.3"
+      - "tupana.description=Sistema de gerenciamento Wi-Fi para Raspberry Pi Zero 2W"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

@@ -1,0 +1,23 @@
+# Dockerfile para versão demo/simulação do TUPANA
+FROM python:3.9-slim
+
+# Instalar dependências básicas
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copiar requirements
+COPY requirements-lite.txt .
+RUN pip install --no-cache-dir -r requirements-lite.txt
+
+# Copiar código demo
+COPY src/main-demo.py ./src/main.py
+COPY templates/index-lite.html ./templates/index.html
+
+# Expor porta
+EXPOSE 8080
+
+# Comando para rodar
+CMD ["python", "src/main.py"]

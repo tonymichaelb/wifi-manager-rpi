@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TUPANA Wi-Fi Manager</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 10px;
+        }
+        
+        .container {
+            max-width: 400px;
+            margin: 20px auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .status {
+            padding: 15px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .connected { background: #27ae60; color: white; }
+        .disconnected { background: #e74c3c; color: white; }
+        .hotspot { background: #f39c12; color: white; }
+        
+        .content {
+            padding: 20px;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-bottom: 10px;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #2980b9;
+        }
+        
+        .network-list {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+        
+        .network-item {
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .network-item:hover {
+            background: #f8f9fa;
+            border-color: #3498db;
+        }
+        
+        .network-name {
+            font-weight: bold;
+            font-size: 16px;
+        }
+        
+        .network-info {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+        
+        .current-network {
+            background: #e8f5e8;
+            border: 2px solid #27ae60;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .current-network h3 {
+            color: #27ae60;
+            margin-bottom: 5px;
+        }
+        
+        .saved-networks {
+            margin-top: 20px;
+        }
+        
+        .saved-network-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            background: #f8f9fa;
+        }
+        
+        .delete-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .delete-btn:hover {
+            background: #c0392b;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 300px;
+        }
+        
+        .input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>TUPANA</h1>
+            <p>Wi-Fi Manager System</p>
+        </div>
+        
+        <div id="status" class="status disconnected">
+            Verificando conexão...
+        </div>
+        
+        <div class="content">
+            <!-- Rede atual conectada -->
+            <div id="currentNetwork" class="current-network" style="display: none;">
+                <h3>📶 Conectado</h3>
+                <p id="currentNetworkName">-</p>
+            </div>
+            
+            <button id="scanBtn" class="btn btn-primary">Escanear Redes Wi-Fi</button>
+            
+            <div id="loading" class="loading">
+                <p>Escaneando redes...</p>
+            </div>
+            
+            <div id="networkList" class="network-list"></div>
+            
+            <div class="saved-networks">
+                <div id="savedNetworksList"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal para senha -->
+    <div id="passwordModal" class="modal">
+        <div class="modal-content">
+            <h3 id="modalTitle">Conectar à rede</h3>
+            <input type="password" id="passwordInput" class="input" placeholder="Senha da rede Wi-Fi">
+            <button id="connectBtn" class="btn btn-primary">Conectar</button>
+            <button id="cancelBtn" class="btn" style="background: #95a5a6; color: white;">Cancelar</button>
+        </div>
+    </div>
+
+    <script>
+        let selectedNetwork = null;
+        
+        // Verificar status
+        function updateStatus() {
+            fetch('/status')
+                .then(response => response.json())
+                .then(data => {
+                    const statusEl = document.getElementById('status');
+                    const currentNetworkEl = document.getElementById('currentNetwork');
+                    const currentNetworkNameEl = document.getElementById('currentNetworkName');
+                    
+                    if (data.connected && data.network) {
+                        statusEl.className = 'status connected';
+                        statusEl.textContent = `Conectado: ${data.network}`;
+                        
+                        // Mostrar rede atual
+                        currentNetworkNameEl.textContent = data.network;
+                        currentNetworkEl.style.display = 'block';
+                    } else if (data.hotspot_active) {
+                        statusEl.className = 'status hotspot';
+                        statusEl.textContent = 'Modo Hotspot Ativo';
+                        currentNetworkEl.style.display = 'none';
+                    } else {
+                        statusEl.className = 'status disconnected';
+                        statusEl.textContent = 'Desconectado';
+                        currentNetworkEl.style.display = 'none';
+                    }
+                })
+                .catch(() => {
+                    document.getElementById('status').textContent = 'Erro de comunicação';
+                    document.getElementById('currentNetwork').style.display = 'none';
+                });
+        }
+        
+        // Escanear redes
+        function scanNetworks() {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('networkList').innerHTML = '';
+            
+            fetch('/scan')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('loading').style.display = 'none';
+                    displayNetworks(data.networks);
+                })
+                .catch(() => {
+                    document.getElementById('loading').style.display = 'none';
+                    alert('Erro ao escanear redes');
+                });
+        }
+        
+        // Exibir redes
+        function displayNetworks(networks) {
+            const listEl = document.getElementById('networkList');
+            
+            if (networks.length === 0) {
+                listEl.innerHTML = '<p style="text-align: center; color: #666;">Nenhuma rede encontrada</p>';
+                return;
+            }
+            
+            networks.forEach(network => {
+                const item = document.createElement('div');
+                item.className = 'network-item';
+                item.onclick = () => selectNetwork(network);
+                
+                item.innerHTML = `
+                    <div class="network-name">${network.ssid}</div>
+                    <div class="network-info">
+                        Sinal: ${network.signal_strength || 'N/A'}% • 
+                        ${network.encrypted ? 'Protegida' : 'Aberta'}
+                    </div>
+                `;
+                
+                listEl.appendChild(item);
+            });
+        }
+        
+        // Selecionar rede
+        function selectNetwork(network) {
+            selectedNetwork = network;
+            document.getElementById('modalTitle').textContent = `Conectar: ${network.ssid}`;
+            
+            if (network.encrypted) {
+                document.getElementById('passwordModal').style.display = 'block';
+                document.getElementById('passwordInput').focus();
+            } else {
+                connectToNetwork('');
+            }
+        }
+        
+        // Conectar à rede
+        function connectToNetwork(password) {
+            if (!selectedNetwork) return;
+            
+            document.getElementById('passwordModal').style.display = 'none';
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('loading').innerHTML = '<p>Conectando...</p>';
+            
+            fetch('/connect', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    ssid: selectedNetwork.ssid,
+                    password: password
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loading').style.display = 'none';
+                
+                if (data.success) {
+                    alert('Conectado com sucesso!');
+                    setTimeout(updateStatus, 2000);
+                } else {
+                    alert('Falha na conexão. Verifique a senha.');
+                }
+                
+                selectedNetwork = null;
+                document.getElementById('passwordInput').value = '';
+            })
+            .catch(() => {
+                document.getElementById('loading').style.display = 'none';
+                alert('Erro na conexão');
+            });
+        }
+        
+        // Carregar redes salvas
+        function loadSavedNetworks() {
+            document.getElementById('savedNetworksList').innerHTML = '<p style="text-align: center; color: #666;">Carregando...</p>';
+            
+            fetch('/saved-networks')
+                .then(response => response.json())
+                .then(data => {
+                    displaySavedNetworks(data.saved_networks);
+                })
+                .catch(() => {
+                    document.getElementById('savedNetworksList').innerHTML = '<p style="text-align: center; color: #e74c3c;">Erro ao carregar redes salvas</p>';
+                });
+        }
+        
+        // Exibir redes salvas
+        function displaySavedNetworks(networks) {
+            const listEl = document.getElementById('savedNetworksList');
+            
+            if (networks.length === 0) {
+                listEl.innerHTML = '<p style="text-align: center; color: #666;">Nenhuma rede salva</p>';
+                return;
+            }
+            
+            listEl.innerHTML = '';
+            
+            networks.forEach(network => {
+                const item = document.createElement('div');
+                item.className = 'saved-network-item';
+                
+                item.innerHTML = `
+                    <span><strong>${network}</strong></span>
+                    <button class="delete-btn" onclick="deleteSavedNetwork('${network}')">🗑️ Excluir</button>
+                `;
+                
+                listEl.appendChild(item);
+            });
+        }
+        
+        // Excluir rede salva
+        function deleteSavedNetwork(ssid) {
+            if (!confirm(`Tem certeza que deseja excluir a rede "${ssid}"?`)) {
+                return;
+            }
+            
+            fetch('/delete-network', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    ssid: ssid
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(`Rede "${ssid}" excluída com sucesso!`);
+                    loadSavedNetworks(); // Recarregar lista
+                } else {
+                    alert(`Erro ao excluir rede "${ssid}": ${data.error || 'Erro desconhecido'}`);
+                }
+            })
+            .catch(() => {
+                alert('Erro na comunicação ao excluir rede');
+            });
+        }
+        
+        // Event listeners
+        document.getElementById('scanBtn').onclick = scanNetworks;
+        document.getElementById('connectBtn').onclick = () => {
+            const password = document.getElementById('passwordInput').value;
+            connectToNetwork(password);
+        };
+        document.getElementById('cancelBtn').onclick = () => {
+            document.getElementById('passwordModal').style.display = 'none';
+            selectedNetwork = null;
+        };
+        
+        // Enter para conectar
+        document.getElementById('passwordInput').onkeypress = (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('connectBtn').click();
+            }
+        };
+        
+        // Inicializar
+        updateStatus();
+        loadSavedNetworks(); // Carregar redes salvas automaticamente
+        setInterval(updateStatus, 10000); // Atualizar a cada 10 segundos
+    </script>
+</body>
+</html>

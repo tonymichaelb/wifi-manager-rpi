@@ -1,0 +1,41 @@
+# Docker Compose para deployment universal
+# Esta versão funciona em qualquer plataforma que suporte Docker
+
+services:
+  wifi-manager:
+    image: tonymichael/wifi-manager:latest
+    container_name: rpi-wifi-manager
+    restart: unless-stopped
+    
+    # Configuração universal
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DEMO_MODE=true                    # Modo demo para desenvolvimento
+      - WIFI_INTERFACE=wlan0
+      - HOTSPOT_SSID=RPi-WiFi-Config
+      - HOTSPOT_PASSWORD=raspberry123
+      - WEB_PORT=8080
+    
+    # Portas (funciona em qualquer sistema)
+    ports:
+      - "8080:8080"
+    
+    # Volumes básicos (sem dependências do sistema)
+    volumes:
+      - wifi-config:/app/config
+      - wifi-logs:/var/log/wifi-manager
+    
+    # Health check universal
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+# Volumes gerenciados pelo Docker
+volumes:
+  wifi-config:
+    driver: local
+  wifi-logs:
+    driver: local
